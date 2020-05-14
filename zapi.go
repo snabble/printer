@@ -21,6 +21,7 @@ var (
 	procEnumPrintersW      = modwinspool.NewProc("EnumPrintersW")
 	procGetPrinterDriverW  = modwinspool.NewProc("GetPrinterDriverW")
 	procEnumJobsW          = modwinspool.NewProc("EnumJobsW")
+	procGetPrinterW        = modwinspool.NewProc("GetPrinterW")
 )
 
 func GetDefaultPrinter(buf *uint16, bufN *uint32) (err error) {
@@ -145,6 +146,18 @@ func GetPrinterDriver(h syscall.Handle, env *uint16, level uint32, di *byte, n u
 
 func EnumJobs(h syscall.Handle, firstJob uint32, noJobs uint32, level uint32, buf *byte, bufN uint32, bytesNeeded *uint32, jobsReturned *uint32) (err error) {
 	r1, _, e1 := syscall.Syscall9(procEnumJobsW.Addr(), 8, uintptr(h), uintptr(firstJob), uintptr(noJobs), uintptr(level), uintptr(unsafe.Pointer(buf)), uintptr(bufN), uintptr(unsafe.Pointer(bytesNeeded)), uintptr(unsafe.Pointer(jobsReturned)), 0)
+	if r1 == 0 {
+		if e1 != 0 {
+			err = error(e1)
+		} else {
+			err = syscall.EINVAL
+		}
+	}
+	return
+}
+
+func GetPrinter(h syscall.Handle, level uint32, di *byte, n uint32, needed *uint32) (err error) {
+	r1, _, e1 := syscall.Syscall6(procGetPrinterW.Addr(), 5, uintptr(h), uintptr(level), uintptr(unsafe.Pointer(di)), uintptr(n), uintptr(unsafe.Pointer(needed)), 0)
 	if r1 == 0 {
 		if e1 != 0 {
 			err = error(e1)

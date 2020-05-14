@@ -28,6 +28,10 @@ type PRINTER_INFO_5 struct {
 	TransmissionRetryTimeout uint32
 }
 
+type PRINTER_INFO_6 struct {
+	Status uint32
+}
+
 type DRIVER_INFO_8 struct {
 	Version                  uint32
 	Name                     *uint16
@@ -97,6 +101,36 @@ const (
 	JOB_STATUS_RENDERING_LOCALLY = 0x00004000 // Job rendering locally on the client
 )
 
+const (
+	PRINTER_STATUS_PAUSED               = 0x00000001
+	PRINTER_STATUS_ERROR                = 0x00000002
+	PRINTER_STATUS_PENDING_DELETION     = 0x00000004
+	PRINTER_STATUS_PAPER_JAM            = 0x00000008
+	PRINTER_STATUS_PAPER_OUT            = 0x00000010
+	PRINTER_STATUS_MANUAL_FEED          = 0x00000020
+	PRINTER_STATUS_PAPER_PROBLEM        = 0x00000040
+	PRINTER_STATUS_OFFLINE              = 0x00000080
+	PRINTER_STATUS_IO_ACTIVE            = 0x00000100
+	PRINTER_STATUS_BUSY                 = 0x00000200
+	PRINTER_STATUS_PRINTING             = 0x00000400
+	PRINTER_STATUS_OUTPUT_BIN_FULL      = 0x00000800
+	PRINTER_STATUS_NOT_AVAILABLE        = 0x00001000
+	PRINTER_STATUS_WAITING              = 0x00002000
+	PRINTER_STATUS_PROCESSING           = 0x00004000
+	PRINTER_STATUS_INITIALIZING         = 0x00008000
+	PRINTER_STATUS_WARMING_UP           = 0x00010000
+	PRINTER_STATUS_TONER_LOW            = 0x00020000
+	PRINTER_STATUS_NO_TONER             = 0x00040000
+	PRINTER_STATUS_PAGE_PUNT            = 0x00080000
+	PRINTER_STATUS_USER_INTERVENTION    = 0x00100000
+	PRINTER_STATUS_OUT_OF_MEMORY        = 0x00200000
+	PRINTER_STATUS_DOOR_OPEN            = 0x00400000
+	PRINTER_STATUS_SERVER_UNKNOWN       = 0x00800000
+	PRINTER_STATUS_POWER_SAVE           = 0x01000000
+	PRINTER_STATUS_SERVER_OFFLINE       = 0x02000000
+	PRINTER_STATUS_DRIVER_UPDATE_NEEDED = 0x04000000
+)
+
 //sys	GetDefaultPrinter(buf *uint16, bufN *uint32) (err error) = winspool.GetDefaultPrinterW
 //sys	ClosePrinter(h syscall.Handle) (err error) = winspool.ClosePrinter
 //sys	OpenPrinter(name *uint16, h *syscall.Handle, defaults uintptr) (err error) = winspool.OpenPrinterW
@@ -108,6 +142,7 @@ const (
 //sys	EnumPrinters(flags uint32, name *uint16, level uint32, buf *byte, bufN uint32, needed *uint32, returned *uint32) (err error) = winspool.EnumPrintersW
 //sys	GetPrinterDriver(h syscall.Handle, env *uint16, level uint32, di *byte, n uint32, needed *uint32) (err error) = winspool.GetPrinterDriverW
 //sys	EnumJobs(h syscall.Handle, firstJob uint32, noJobs uint32, level uint32, buf *byte, bufN uint32, bytesNeeded *uint32, jobsReturned *uint32) (err error) = winspool.EnumJobsW
+//sys GetPrinter(h syscall.Handle, level uint32, di *byte, n uint32, needed *uint32) (err error) = winspool.GetPrinterW
 
 func Default() (string, error) {
 	b := make([]uint16, 3)
@@ -299,6 +334,27 @@ func (p *Printer) Jobs() ([]JobInfo, error) {
 		pjs = append(pjs, pji)
 	}
 	return pjs, nil
+}
+
+// Status returns the status about printer p.
+func (p *Printer) Status() (uint32, error) {
+	var needed uint32
+	b := make([]byte, 1024*10)
+	for {
+		err := GetPrinter(p.h, 6, &b[0], uint32(len(b)), &needed)
+		if err == nil {
+			break
+		}
+		if err != syscall.ERROR_INSUFFICIENT_BUFFER {
+			return 0, err
+		}
+		if needed <= uint32(len(b)) {
+			return 0, err
+		}
+		b = make([]byte, needed)
+	}
+	pi := (*PRINTER_INFO_6)(unsafe.Pointer(&b[0]))
+	return pi.Status, nil
 }
 
 // DriverInfo returns information about printer p driver.
