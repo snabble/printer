@@ -131,6 +131,18 @@ const (
 	PRINTER_STATUS_DRIVER_UPDATE_NEEDED = 0x04000000
 )
 
+const (
+	JOB_CONTROL_PAUSE             = 1
+	JOB_CONTROL_RESUME            = 2
+	JOB_CONTROL_CANCEL            = 3
+	JOB_CONTROL_RESTART           = 4
+	JOB_CONTROL_DELETE            = 5
+	JOB_CONTROL_SENT_TO_PRINTER   = 6
+	JOB_CONTROL_LAST_PAGE_EJECTED = 7
+	JOB_CONTROL_RETAIN            = 8
+	JOB_CONTROL_RELEASE           = 9
+)
+
 //sys	GetDefaultPrinter(buf *uint16, bufN *uint32) (err error) = winspool.GetDefaultPrinterW
 //sys	ClosePrinter(h syscall.Handle) (err error) = winspool.ClosePrinter
 //sys	OpenPrinter(name *uint16, h *syscall.Handle, defaults uintptr) (err error) = winspool.OpenPrinterW
@@ -143,6 +155,7 @@ const (
 //sys	GetPrinterDriver(h syscall.Handle, env *uint16, level uint32, di *byte, n uint32, needed *uint32) (err error) = winspool.GetPrinterDriverW
 //sys	EnumJobs(h syscall.Handle, firstJob uint32, noJobs uint32, level uint32, buf *byte, bufN uint32, bytesNeeded *uint32, jobsReturned *uint32) (err error) = winspool.EnumJobsW
 //sys GetPrinter(h syscall.Handle, level uint32, di *byte, n uint32, needed *uint32) (err error) = winspool.GetPrinterW
+//sys SetJob(h syscall.Handle, jobId uint32, level uint32, pJob *byte, command uint32) (err error) = winspool.SetJobW
 
 func Default() (string, error) {
 	b := make([]uint16, 3)
@@ -334,6 +347,12 @@ func (p *Printer) Jobs() ([]JobInfo, error) {
 		pjs = append(pjs, pji)
 	}
 	return pjs, nil
+}
+
+// Control Job
+func (p *Printer) ControlJob(jobInfo *JobInfo, command int) error {
+	err := SetJob(p.h, jobInfo.JobID, 0, nil, uint32(command))
+	return err
 }
 
 // Status returns the status about printer p.
